@@ -68,3 +68,62 @@ FROM Repuesto repu
 LEFT JOIN RepuestoReparacion rp ON (repu.codRep = rp.codRep)
 LEFT JOIN Reparacion repa ON (rp.nroReparac = repa.nroReparac)
 GROUP BY repu.codRep, repu.nombre, repu.stock
+
+SELECT t.nombre, t.especialidad
+FROM Tecnico t
+INNER JOIN Reparacion r
+GROUP BY t.codTec, t.nombre, t.especialidad
+HAVING COUNT(r.nroReparac) = (
+    SELECT MAX(cantidad)
+    FROM (
+        SELECT COUNT(repa2.nroReparac) AS cantidad
+        FROM Reparacion repa2
+        GROUP BY repa2.codTec
+    ) as MAXIMO
+)
+OR (
+    SELECT MIN (cantidad)
+    FROM(
+        SELECT COUNT(repa3.nroReparac) AS cantidad
+        FROM Reparacion repa3
+        GROUP BY repa3.codTec
+    ) as MINIMO
+)
+
+SELECT repu.nombre, repu.stock, repu.precio
+FROM Repuesto repu
+WHERE repu.precio > 0 AND repu.codRep NOT IN(
+    SELECT rp.codRep
+    FROM RepuestoReparacion rp
+    INNER JOIN Reparacion repa ON (repa.nroReparac = rp.nroReparac)
+    WHERE repa.precio_total > 10000
+)
+
+SELECT repa.nroReparac, repa.fecha, repa.precio_total
+FROM Reparacion repa
+WHERE repa.nroReparac IN (
+    SELECT rp.nroReparac
+    FROM RepuestoReparacion rp
+    INNER JOIN Repuesto repu ON (rp.codRep = repu.codRep)
+    WHERE rp.precio / rp.cantidad > 10000 AND rp.precio / rp.cantidad < 15000 
+)
+
+SELECT repu.nombre, repu.stock, repu.precio
+FROM Repuesto repu
+WHERE NOT EXISTS(
+    SELECT *
+    FROM Tecnico t
+    WHERE NOT EXISTS(
+        SELECT *
+        FROM Reparacion repa
+        INNER JOIN RepuestoReparacion rp ON (repa.nroReparac = rp.nroReparac)
+        WHERE repa.codTec=t.codTec AND repu.codRep=rp.codRep
+    )
+);
+
+SELECT repa.fecha, t.nombre, repa.precio_total
+FROM Reparacion repa
+INNER JOIN Tecnico t ON repa.codTec = t.codTec
+INNER JOIN RepuestoReparacion rp ON repa.nroReparac = rp.nroReparac
+GROUP BY repa.nroReparac, repa.fecha, t.nombre, repa.precio_total
+HAVING COUNT(DISTINCT rp.codRep) >= 10;
